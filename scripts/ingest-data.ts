@@ -1,56 +1,65 @@
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { Chroma } from 'langchain/vectorstores/chroma';
-import { CustomPDFLoader } from '@/utils/customPDFLoader';
-import { COLLECTION_NAME } from '@/config/chroma';
-import { DirectoryLoader } from 'langchain/document_loaders/fs/directory';
+import fs from 'fs';
+import path from 'path';
+import { OpenAIEmbeddings } from '@langchain/openai';
+import { Chroma } from '@langchain/community/vectorstores/chroma';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { v4 as uuidv4 } from 'uuid';
+import { CHROMA_URL, COLLECTION_NAME } from '@/config/chroma';
 
-/* Name of directory to retrieve your files from */
+
 const filePath = 'docs';
-
 export const run = async () => {
   try {
-    /*load raw docs from the all files in the directory */
-    const directoryLoader = new DirectoryLoader(filePath, {
-      '.pdf': (path) => new CustomPDFLoader(path),
-    });
+    const files = fs.readdirSync(filePath);
+    const pdfFiles = files.filter(file => path.extname(file).toLowerCase() === '.pdf');
 
-    // const loader = new PDFLoader(filePath);
-    const rawDocs = await directoryLoader.load();
+    const rawDocs = [];
+    for (const file of pdfFiles) {
+      const fullPath = path.join(filePath, file);
+      const loader = new PDFLoader(fullPath);
+      const docs = await loader.load();
+      rawDocs.push(...docs);
+    }
 
-    /* Split text into chunks */
     const textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
 
     const docs = await textSplitter.splitDocuments(rawDocs);
-    console.log('split docs', docs);
+    docs.forEach(doc => {
+      doc.metadata.id = uuidv4();
+    });
 
-    console.log('creating vector store...');
-    /*create and store the embeddings in the vectorStore*/
-    const embeddings = new OpenAIEmbeddings();
+    const embeddings = new OpenAIEmbeddings({
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    });
 
-    let chroma = new Chroma(embeddings, {collectionName: COLLECTION_NAME})
-    await chroma.index?.reset()
-    
-    //embed the PDF documents
-
-    // Ingest documents in batches of 100
-
-    for (let i = 0; i < docs.length; i += 100) {
-      const batch = docs.slice(i, i + 100);
-      await Chroma.fromDocuments(batch, embeddings, {
-        collectionName: COLLECTION_NAME,
-      });
+    // Sanitize metadata (flatten it)
+    for (const doc of docs) {
+      if (doc.metadata && typeof doc.metadata !== 'object') {
+        doc.metadata = {};
+      } else {
+        // optional: remove nested metadata
+        for (const key in doc.metadata) {
+          if (typeof doc.metadata[key] === 'object') {
+            delete doc.metadata[key]; // or stringify if needed
+          }
+        }
+      }
     }
+
+    console.log("Sample split doc:", docs[0]);
+    const chroma = await Chroma.fromDocuments(docs, embeddings, {
+      collectionName: COLLECTION_NAME,
+      url: CHROMA_URL,
+    });
+
+    console.log('Ingestion complete');
   } catch (error) {
-    console.log('error', error);
-    throw new Error('Failed to ingest your data');
+    console.error('Error during ingestion:', error);
   }
 };
 
-(async () => {
-  await run();
-  console.log('ingestion complete');
-})();
+run();

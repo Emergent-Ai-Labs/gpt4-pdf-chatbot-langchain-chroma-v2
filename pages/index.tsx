@@ -12,6 +12,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import React from 'react';
 
 export default function Home() {
   const [query, setQuery] = useState<string>('');
@@ -166,14 +167,15 @@ export default function Home() {
                   }
                   return (
                     <>
-                      <div key={`chatMessage-${index}`} className={className}>
-                        {icon}
-                        <div className={styles.markdownanswer}>
-                          <ReactMarkdown linkTarget="_blank">
-                            {message.message}
-                          </ReactMarkdown>
+                      <React.Fragment key={`chatMessage-${index}`}>
+                        <div className={className}>
+                          {icon}
+                          <div className={styles.markdownanswer}>
+                            <ReactMarkdown linkTarget="_blank">{message.message}</ReactMarkdown>
+                          </div>
                         </div>
-                      </div>
+                      </React.Fragment>
+                      {/* If the message has source documents, show them in an accordion */}
                       {message.sourceDocs && (
                         <div
                           className="p-5"

@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { Chroma } from 'langchain/vectorstores/chroma';
+import { OpenAIEmbeddings } from '@langchain/openai';
+import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { makeChain } from '@/utils/makechain';
-import { COLLECTION_NAME } from '@/config/chroma';
+import { CHROMA_URL, COLLECTION_NAME } from '@/config/chroma';
+import { ChromaClient } from 'chromadb';
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,14 +26,19 @@ export default async function handler(
   const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
 
   try {
-
+    const client = new ChromaClient({path: CHROMA_URL});
+    const collection = await client.getCollection({name: COLLECTION_NAME});
+    const count = await collection.count();
+    console.log(`[Chroma] Document count: ${count}`);
+    
+    console.log(COLLECTION_NAME);
+    console.log(CHROMA_URL);
+    console.log('creating vector store...');
     /* create vectorstore*/
-    const vectorStore = await Chroma.fromExistingCollection(
-      new OpenAIEmbeddings({}),
-      {
-        collectionName: COLLECTION_NAME,
-       },
-    );
+    const vectorStore = new Chroma(new OpenAIEmbeddings(), {
+      collectionName: COLLECTION_NAME,
+      url: CHROMA_URL,
+    });
 
     //create chain
     const chain = makeChain(vectorStore);

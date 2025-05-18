@@ -15,12 +15,16 @@
     "ingest": "tsx -r dotenv/config scripts/ingest-data.ts"
   },
   "dependencies": {
+    "@langchain/community": "^0.3.43",
+    "@langchain/core": "^0.3.56",
+    "@langchain/openai": "^0.5.10",
+    "@langchain/textsplitters": "^0.1.0",
     "@microsoft/fetch-event-source": "^2.0.1",
-    "chromadb": "1.4.1",
     "@radix-ui/react-accordion": "^1.1.1",
+    "chromadb": "^2.4.4",
     "clsx": "^1.2.1",
     "dotenv": "^16.0.3",
-    "langchain": "0.0.55",
+    "langchain": "^0.3.26",
     "lucide-react": "^0.125.0",
     "next": "13.2.3",
     "pdf-parse": "1.1.1",
